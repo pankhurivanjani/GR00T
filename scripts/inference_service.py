@@ -21,6 +21,7 @@ from gr00t.eval.robot import RobotInferenceClient, RobotInferenceServer
 from gr00t.experiment.data_config import DATA_CONFIG_MAP
 from gr00t.model.policy import Gr00tPolicy
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -81,6 +82,7 @@ if __name__ == "__main__":
         # Start the server
         server = RobotInferenceServer(policy, port=args.port)
         server.run()
+        print(args.host)
 
     elif args.client:
         import time
@@ -91,7 +93,10 @@ if __name__ == "__main__":
         policy_client = RobotInferenceClient(host=args.host, port=args.port)
 
         print("Available modality config available:")
+        print("🟡 Sending observation to server...")
+        print(args.host)
         modality_configs = policy_client.get_modality_config()
+        print("🟢 Received action from server.")
         print(modality_configs.keys())
 
         # Making prediction...
@@ -109,20 +114,17 @@ if __name__ == "__main__":
         # - action: action.waist: (16, 3)
         obs = {
             "video.ego_view": np.random.randint(0, 256, (1, 256, 256, 3), dtype=np.uint8),
-            "state.left_arm": np.random.rand(1, 7),
-            "state.right_arm": np.random.rand(1, 7),
-            "state.left_hand": np.random.rand(1, 6),
-            "state.right_hand": np.random.rand(1, 6),
-            "state.waist": np.random.rand(1, 3),
-            "annotation.human.action.task_description": ["do your thing!"],
+            "state.gripper_state": np.random.rand(1, 1),
+            "state.joint_pos": np.random.rand(1, 7),
+            # "state.joint_vel": np.random.rand(1, 7),
+            "annotation.human.action.task_description": ["pick the pear from the counter and place it in the plate"],
         }
 
         time_start = time.time()
         action = policy_client.get_action(obs)
         print(f"Total time taken to get action from server: {time.time() - time_start} seconds")
+        print()
 
         for key, value in action.items():
             print(f"Action: {key}: {value.shape}")
 
-    else:
-        raise ValueError("Please specify either --server or --client")

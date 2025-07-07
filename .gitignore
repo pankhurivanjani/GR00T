@@ -122,3 +122,11 @@ playground/
 demo_data/gr00t-gr1-apple-to-shelf/
 tmp/
 output/
+
+#add
+training_data/
+collect_data/
+demo_data/
+real_kitchen_evaluation/
+real_robot/
+checkpoints/

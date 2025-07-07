@@ -29,6 +29,7 @@ from gr00t.experiment.data_config import DATA_CONFIG_MAP
 from gr00t.experiment.runner import TrainRunner
 from gr00t.model.gr00t_n1 import GR00T_N1
 from gr00t.utils.peft import get_lora_model
+from datetime import datetime
 
 
 @dataclass
@@ -36,13 +37,13 @@ class Config:
     """Configuration for GR00T model fine-tuning."""
 
     # Dataset parameters
-    dataset_path: str
+    dataset_path: str = "training_data"
     """Path to the dataset directory."""
 
-    output_dir: str = "/tmp/gr00t"
+    output_dir: str = f"checkpoints/checkpoint_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     """Directory to save model checkpoints."""
 
-    data_config: str = "gr1_arms_only"
+    data_config: str = "irl_panda"
     """Data configuration name from DATA_CONFIG_MAP."""
 
     # Training parameters
