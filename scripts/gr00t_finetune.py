@@ -40,23 +40,23 @@ class Config:
     dataset_path: str = "training_data"
     """Path to the dataset directory."""
 
-    output_dir: str = f"checkpoints/checkpoint_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    output_dir: str = f"checkpoints/two_cams_139_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     """Directory to save model checkpoints."""
 
     data_config: str = "irl_panda"
     """Data configuration name from DATA_CONFIG_MAP."""
 
     # Training parameters
-    batch_size: int = 16
+    batch_size: int = 32
     """Batch size per GPU for training."""
 
-    max_steps: int = 10000
+    max_steps: int = 50000
     """Maximum number of training steps."""
 
     num_gpus: int = 1
     """Number of GPUs to use for training."""
 
-    save_steps: int = 500
+    save_steps: int = 5000
     """Number of steps between saving checkpoints."""
 
     # Model parameters
@@ -184,7 +184,7 @@ def main(config: Config):
         save_strategy="steps",
         save_steps=config.save_steps,
         evaluation_strategy="no",
-        save_total_limit=8,
+        save_total_limit=None,  # ....
         report_to=config.report_to,
         seed=42,
         do_eval=False,

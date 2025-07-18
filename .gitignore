@@ -125,8 +125,10 @@ output/
 
 #add
 training_data/
+training_data_copy/
 collect_data/
 demo_data/
-real_kitchen_evaluation/
-real_robot/
 checkpoints/
+
+# real_kitchen_evaluation/
+# real_robot/
