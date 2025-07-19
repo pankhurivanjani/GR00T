@@ -128,7 +128,10 @@ training_data/
 training_data_copy/
 collect_data/
 demo_data/
+
 checkpoints/
 
-# real_kitchen_evaluation/
-# real_robot/
+real_kitchen_evaluation/
+real_robot/
+
+logs/
