@@ -18,7 +18,7 @@ from io import BytesIO
 from typing import Any, Callable, Dict
 
 import torch
-import zmq
+import zmq, socket
 
 
 class TorchSerializer:
@@ -46,17 +46,31 @@ class BaseInferenceServer:
     An inference server that spin up a ZeroMQ socket and listen for incoming requests.
     Can add custom endpoints by calling `register_endpoint`.
     """
+    # ipv4
+    # def __init__(self, host: str = "*", port: int = 5555):
+    #     self.running = True
+    #     self.context = zmq.Context()
+    #     self.socket = self.context.socket(zmq.REP)
+    #     self.socket.bind(f"tcp://{host}:{port}")
+    #     self._endpoints: dict[str, EndpointHandler] = {}
 
-    def __init__(self, host: str = "*", port: int = 5555):
+    #     # Register the ping endpoint by default
+    #     self.register_endpoint("ping", self._handle_ping, requires_input=False)
+    #     self.register_endpoint("kill", self._kill_server, requires_input=False)
+
+    #ipv6:
+    def __init__(self, host: str = "::", port: int = 5555):
         self.running = True
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.REP)
-        self.socket.bind(f"tcp://{host}:{port}")
+        self.socket.setsockopt(zmq.IPV6, 1)
+        bind_addr = f"tcp://[{host}]:{port}"
+        self.socket.bind(bind_addr)
         self._endpoints: dict[str, EndpointHandler] = {}
-
         # Register the ping endpoint by default
         self.register_endpoint("ping", self._handle_ping, requires_input=False)
         self.register_endpoint("kill", self._kill_server, requires_input=False)
+
 
     def _kill_server(self):
         """
@@ -116,10 +130,18 @@ class BaseInferenceClient:
         self.timeout_ms = timeout_ms
         self._init_socket()
 
+    # # ipv4
+    # def _init_socket(self):
+    #     """Initialize or reinitialize the socket with current settings"""
+    #     self.socket = self.context.socket(zmq.REQ)
+    #     self.socket.connect(f"tcp://{self.host}:{self.port}")
+    
+    # ipv6
     def _init_socket(self):
-        """Initialize or reinitialize the socket with current settings"""
         self.socket = self.context.socket(zmq.REQ)
-        self.socket.connect(f"tcp://{self.host}:{self.port}")
+        self.socket.setsockopt(zmq.IPV6, 1)
+        connect_addr = f"tcp://[{self.host}]:{self.port}"
+        self.socket.connect(connect_addr)
 
     def ping(self) -> bool:
         try:

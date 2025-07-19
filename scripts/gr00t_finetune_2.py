@@ -56,7 +56,7 @@ class Config:
     num_gpus: int = 1
     """Number of GPUs to use for training."""
 
-    save_steps: int = 2000
+    save_steps: int = 5000
     """Number of steps between saving checkpoints."""
 
     # Model parameters
