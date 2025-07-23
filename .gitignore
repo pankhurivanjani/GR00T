@@ -122,10 +122,13 @@ playground/
 demo_data/gr00t-gr1-apple-to-shelf/
 tmp/
 output/
+outputs/
+
 
 #add
 training_data/
 training_data_copy/
+training_data_task_1/
 collect_data/
 demo_data/
 
