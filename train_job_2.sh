@@ -1,10 +1,10 @@
 #!/bin/bash
 #SBATCH --job-name=gr00t_offline_train
-#SBATCH --partition=gpu_h100_il
+#SBATCH --partition=gpu_h100
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=20G
-#SBATCH -t 5:00:00
+#SBATCH -t 10:00:00
 #SBATCH --output=logs/%x-%j.out
 #SBATCH --error=logs/%x-%j.err
 

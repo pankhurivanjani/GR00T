@@ -1,0 +1,160 @@
+{
+    "codebase_version": "v1.0",
+    "robot_type": "irlpanda",
+    "total_episodes": 49,
+    "total_frames": 34531,
+    "total_tasks": 2,
+    "total_videos": 98,
+    "total_chunks": 0,
+    "chunks_size": 1000,
+    "fps": 20.0,
+    "splits": {
+        "train": "0:100"
+    },
+    "data_path": "data/chunk-{episode_chunk:03d}/episode_{episode_index:06d}.parquet",
+    "video_path": "videos/chunk-{episode_chunk:03d}/{video_key}/episode_{episode_index:06d}.mp4",
+    "features": {
+        "observation.images.egoview": {
+            "dtype": "video",
+            "shape": [
+                800,
+                1280,
+                3
+            ],
+            "names": [
+                "height",
+                "width",
+                "channel"
+            ],
+            "video_info": {
+                "video.fps": 20.0,
+                "video.codec": "h264",
+                "video.pix_fmt": "yuv420p",
+                "video.is_depth_map": false,
+                "has_audio": false
+            }
+        },
+        "observation.images.ego_view": {
+            "dtype": "video",
+            "shape": [
+                256,
+                256,
+                3
+            ],
+            "names": [
+                "height",
+                "width",
+                "channel"
+            ],
+            "video_info": {
+                "video.fps": 20.0,
+                "video.codec": "h264",
+                "video.pix_fmt": "yuv420p",
+                "video.is_depth_map": false,
+                "has_audio": false
+            }
+        },
+
+        "observation.images.second_view": {
+            "dtype": "video",
+            "shape": [
+                256,
+                256,
+                3
+            ],
+            "names": [
+                "height",
+                "width",
+                "channel"
+            ],
+            "video_info": {
+                "video.fps": 20.0,
+                "video.codec": "h264",
+                "video.pix_fmt": "yuv420p",
+                "video.is_depth_map": false,
+                "has_audio": false
+            }
+        },
+
+        "observation.state": {
+            "dtype": "float64",
+            "shape": [
+                44
+            ],
+            "names": [         
+                "joint_pos_0",          
+                "joint_pos_1",
+                "joint_pos_2",
+                "joint_pos_3",
+                "joint_pos_4",
+                "joint_pos_5",
+                "joint_pos_6", 
+                "gripper_state"   
+            ]
+        },
+        "action": {
+            "dtype": "float64",
+            "shape": [
+                44
+            ],
+            "names": [       
+                "joint_pos_0",          
+                "joint_pos_1",
+                "joint_pos_2",
+                "joint_pos_3",
+                "joint_pos_4",
+                "joint_pos_5",
+                "joint_pos_6",
+                "gripper_state"
+            ]
+        },
+        "timestamp": {
+            "dtype": "float64",
+            "shape": [
+                1
+            ]
+        },
+        "annotation.human.action.task_description": {
+            "dtype": "int64",
+            "shape": [
+                1
+            ]
+        },
+        "task_index": {
+            "dtype": "int64",
+            "shape": [
+                1
+            ]
+        },
+        "annotation.human.validity": {
+            "dtype": "int64",
+            "shape": [
+                1
+            ]
+        },
+        "episode_index": {
+            "dtype": "int64",
+            "shape": [
+                1
+            ]
+        },
+        "index": {
+            "dtype": "int64",
+            "shape": [
+                1
+            ]
+        },
+        "next.reward": {
+            "dtype": "float64",
+            "shape": [
+                1
+            ]
+        },
+        "next.done": {
+            "dtype": "bool",
+            "shape": [
+                1
+            ]
+        }
+    }
+}

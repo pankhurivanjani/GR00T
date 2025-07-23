@@ -37,26 +37,26 @@ class Config:
     """Configuration for GR00T model fine-tuning."""
 
     # Dataset parameters
-    dataset_path: str = "training_data_copy"
+    dataset_path: str = "training_data_task_1"
     """Path to the dataset directory."""
 
-    output_dir: str = f"checkpoints/secondview_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    output_dir: str = f"checkpoints/task_1{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     """Directory to save model checkpoints."""
 
-    data_config: str = "irl_panda_2"
+    data_config: str = "irl_panda"
     """Data configuration name from DATA_CONFIG_MAP."""
 
     # Training parameters
     batch_size: int = 32
     """Batch size per GPU for training."""
 
-    max_steps: int = 20000
+    max_steps: int = 30000
     """Maximum number of training steps."""
 
     num_gpus: int = 1
     """Number of GPUs to use for training."""
 
-    save_steps: int = 5000
+    save_steps: int = 10000
     """Number of steps between saving checkpoints."""
 
     # Model parameters
