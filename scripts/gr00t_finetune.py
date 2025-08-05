@@ -18,22 +18,24 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import List, Literal
 
 import torch
 import tyro
 from transformers import TrainingArguments
 
-from gr00t.data.dataset import LeRobotSingleDataset
+from gr00t.data.dataset import LeRobotMixtureDataset, LeRobotSingleDataset
 from gr00t.data.schema import EmbodimentTag
 from gr00t.experiment.data_config import DATA_CONFIG_MAP
 from gr00t.experiment.runner import TrainRunner
-from gr00t.model.gr00t_n1 import GR00T_N1
+from gr00t.model.gr00t_n1 import GR00T_N1_5
+from gr00t.model.transforms import EMBODIMENT_TAG_MAPPING
 from gr00t.utils.peft import get_lora_model
 from datetime import datetime
 
 
 @dataclass
-class Config:
+class ArgsConfig:
     """Configuration for GR00T model fine-tuning."""
 
     # Dataset parameters
@@ -43,8 +45,8 @@ class Config:
     output_dir: str = f"checkpoints/multi_task_0_1{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     """Directory to save model checkpoints."""
 
-    data_config: str = "irl_panda"
-    """Data configuration name from DATA_CONFIG_MAP."""
+    data_config: Literal[tuple(DATA_CONFIG_MAP.keys())] = "irl_panda"
+    """Data configuration name from DATA_CONFIG_MAP, we assume all datasets have the same data config"""
 
     # Training parameters
     batch_size: int = 32
@@ -60,13 +62,13 @@ class Config:
     """Number of steps between saving checkpoints."""
 
     # Model parameters
-    base_model_path: str = "nvidia/GR00T-N1-2B"
+    base_model_path: str = "nvidia/GR00T-N1.5-3B"
     """Path or HuggingFace model ID for the base model."""
 
     tune_llm: bool = False
     """Whether to fine-tune the language model backbone."""
 
-    tune_visual: bool = True
+    tune_visual: bool = False
     """Whether to fine-tune the vision tower."""
 
     tune_projector: bool = True
@@ -89,7 +91,7 @@ class Config:
     """Ratio of total training steps used for warmup."""
 
     lora_rank: int = 0
-    """Rank for the LORA model."""
+    """Rank for the LORA model. If 0, no LORA will be used."""
 
     lora_alpha: int = 16
     """Alpha value for the LORA model."""
@@ -97,18 +99,29 @@ class Config:
     lora_dropout: float = 0.1
     """Dropout rate for the LORA model."""
 
+    lora_full_model: bool = False
+    """Whether to use the full model for LORA. If False, only the action head will be trained."""
+
     dataloader_num_workers: int = 8
     """Number of workers for data loading."""
 
-    report_to: str = "wandb"
-    """Where to report training metrics (e.g., 'wandb', 'tensorboard')."""
+    report_to: Literal["wandb", "tensorboard", "azure_ml"] = "wandb"
+    """Where to report training metrics (e.g., 'wandb', 'tensorboard', 'azure_ml')."""
 
     # Data loading parameters
-    embodiment_tag: str = "new_embodiment"
+    embodiment_tag: Literal[tuple(EMBODIMENT_TAG_MAPPING.keys())] = "new_embodiment"
     """Embodiment tag to use for training. e.g. 'new_embodiment', 'gr1'"""
 
-    video_backend: str = "decord"
+    video_backend: Literal["decord", "torchvision_av"] = "decord"
     """Video backend to use for training. [decord, torchvision_av]"""
+
+    # Mixture dataset parameters
+    balance_dataset_weights: bool = True
+    """Used in LeRobotMixtureDataset. If True, we will balance the dataset weights, by multiplying the total trajectory to each dataset"""
+
+    # Mixture dataset parameters
+    balance_trajectory_weights: bool = True
+    """Used in LeRobotMixtureDataset. If True, sample trajectories within a dataset weighted by their length; otherwise, equal weighting."""
 
 
 #####################################################################################
@@ -116,7 +129,7 @@ class Config:
 #####################################################################################
 
 
-def main(config: Config):
+def main(config: ArgsConfig):
     """Main training function."""
     # ------------ step 1: load dataset ------------
     embodiment_tag = EmbodimentTag(config.embodiment_tag)
@@ -126,23 +139,92 @@ def main(config: Config):
     modality_configs = data_config_cls.modality_config()
     transforms = data_config_cls.transform()
 
-    # 1.2 data loader
-    train_dataset = LeRobotSingleDataset(
-        dataset_path=config.dataset_path,
-        modality_configs=modality_configs,
-        transforms=transforms,
-        embodiment_tag=embodiment_tag,  # This will override the dataset's embodiment tag to "new_embodiment"
-        video_backend=config.video_backend,
-    )
+    # 1.2 data loader: we will use either single dataset or mixture dataset
+    if len(config.dataset_path) == 1:
+        train_dataset = LeRobotSingleDataset(
+            dataset_path=config.dataset_path[0],
+            modality_configs=modality_configs,
+            transforms=transforms,
+            embodiment_tag=embodiment_tag,  # This will override the dataset's embodiment tag to "new_embodiment"
+            video_backend=config.video_backend,
+        )
+    else:
+        single_datasets = []
+        for p in config.dataset_path:
+            assert os.path.exists(p), f"Dataset path {p} does not exist"
+            ## We use the same transforms, modality configs, and embodiment tag for all datasets here,
+            ## in reality, you can use dataset from different modalities and embodiment tags
+            dataset = LeRobotSingleDataset(
+                dataset_path=p,
+                modality_configs=modality_configs,
+                transforms=transforms,
+                embodiment_tag=embodiment_tag,
+                video_backend=config.video_backend,
+            )
+            single_datasets.append(dataset)
+
+        train_dataset = LeRobotMixtureDataset(
+            data_mixture=[
+                (dataset, 1.0)  # we will use equal weights for all datasets
+                for dataset in single_datasets
+            ],
+            mode="train",
+            balance_dataset_weights=config.balance_dataset_weights,
+            balance_trajectory_weights=config.balance_trajectory_weights,
+            seed=42,
+            metadata_config={
+                "percentile_mixing_method": "weighted_average",
+            },
+        )
+        print(f"Loaded {len(single_datasets)} datasets, with {config.dataset_path} ")
 
     # ------------ step 2: load model ------------
-    model = GR00T_N1.from_pretrained(
+    # First, get the data config to determine action horizon
+    data_action_horizon = len(data_config_cls.action_indices)
+
+    # Load model
+    model = GR00T_N1_5.from_pretrained(
         pretrained_model_name_or_path=config.base_model_path,
         tune_llm=config.tune_llm,  # backbone's LLM
         tune_visual=config.tune_visual,  # backbone's vision tower
         tune_projector=config.tune_projector,  # action head's projector
         tune_diffusion_model=config.tune_diffusion_model,  # action head's DiT
     )
+
+    # Update action_horizon to match data config
+    # Need to recreate action head with correct config since it was initialized with old config
+    if data_action_horizon != model.action_head.config.action_horizon:
+        print(
+            f"Recreating action head with action_horizon {data_action_horizon} (was {model.action_head.config.action_horizon})"
+        )
+
+        # Update the action head config
+        new_action_head_config = model.action_head.config
+        new_action_head_config.action_horizon = data_action_horizon
+
+        # Import the FlowmatchingActionHead class
+        from gr00t.model.action_head.flow_matching_action_head import (
+            FlowmatchingActionHead,
+        )
+
+        # Create new action head with updated config
+        new_action_head = FlowmatchingActionHead(new_action_head_config)
+
+        # Copy the weights from the old action head to the new one
+        new_action_head.load_state_dict(model.action_head.state_dict(), strict=False)
+
+        # Replace the action head
+        model.action_head = new_action_head
+
+        # Update model config AND the action_head_cfg dictionary that gets saved
+        model.config.action_horizon = data_action_horizon
+        model.action_horizon = data_action_horizon
+        model.config.action_head_cfg["action_horizon"] = data_action_horizon
+
+        # Set trainable parameters for the new action head
+        model.action_head.set_trainable_parameters(
+            tune_projector=config.tune_projector, tune_diffusion_model=config.tune_diffusion_model
+        )
 
     # Set the model's compute_dtype to bfloat16
     model.compute_dtype = "bfloat16"
@@ -154,6 +236,7 @@ def main(config: Config):
             rank=config.lora_rank,
             lora_alpha=config.lora_alpha,
             lora_dropout=config.lora_dropout,
+            action_head_only=not config.lora_full_model,
         )
 
     # 2.1 modify training args
@@ -169,7 +252,7 @@ def main(config: Config):
         gradient_accumulation_steps=1,
         dataloader_num_workers=config.dataloader_num_workers,
         dataloader_pin_memory=False,
-        dataloader_persistent_workers=True,
+        dataloader_persistent_workers=config.dataloader_num_workers > 0,
         optim="adamw_torch",
         adam_beta1=0.95,
         adam_beta2=0.999,
@@ -207,7 +290,7 @@ def main(config: Config):
 
 if __name__ == "__main__":
     # Parse arguments using tyro
-    config = tyro.cli(Config)
+    config = tyro.cli(ArgsConfig)
 
     # Print the tyro config
     print("\n" + "=" * 50)
@@ -261,7 +344,13 @@ if __name__ == "__main__":
                 else:
                     # For non-boolean values, use --key value format
                     cmd.append(f"--{key.replace('_', '-')}")
-                    cmd.append(str(value))
+
+                    # if the value is a list (e.g. dataset_path), we need to add each element in the list
+                    if isinstance(value, list):
+                        for v in value:
+                            cmd.append(str(v))
+                    else:
+                        cmd.append(str(value))
             print("Running torchrun command: ", cmd)
             env = os.environ.copy()
             env["IS_TORCHRUN"] = "1"
