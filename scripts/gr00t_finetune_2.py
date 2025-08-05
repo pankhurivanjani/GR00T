@@ -40,10 +40,10 @@ class Config:
     dataset_path: str = "training_data_task_1"
     """Path to the dataset directory."""
 
-    output_dir: str = f"checkpoints/task_1{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    output_dir: str = f"checkpoints/task_1_color_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     """Directory to save model checkpoints."""
 
-    data_config: str = "irl_panda"
+    data_config: str = "irl_panda_color_task"
     """Data configuration name from DATA_CONFIG_MAP."""
 
     # Training parameters
