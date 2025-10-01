@@ -1,15 +1,14 @@
 #!/bin/bash
 #SBATCH --job-name=off_gr00t
-#SBATCH --partition=gpu_h100_il
+#SBATCH --partition=accelerated
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=20G
-#SBATCH -t 12:00:00
+#SBATCH -t 20:20:00
 #SBATCH --output=logs/%x-%j.out
 #SBATCH --error=logs/%x-%j.err
-#SBATCH --mail-type=BEGIN,END,FAIL    
-#SBATCH --mail-user=ulgrl@student.kit.edu
 
-source /home/ka/ka_stud/ka_ulgrl/miniconda3/etc/profile.d/conda.sh
-conda activate /home/ka/ka_stud/ka_ulgrl/miniconda3/envs/gr00t
-python /home/ka/ka_stud/ka_ulgrl/policies/Isaac-GR00T/scripts/gr00t_finetune.py
+source ~/miniconda3/etc/profile.d/conda.sh
+conda activate ~/miniconda3/envs/groot
+python /hkfs/work/workspace/scratch/vb0283-fastslowtac/GR00T/scripts/gr00t_finetune.py
+

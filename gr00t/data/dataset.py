@@ -35,6 +35,7 @@ import pandas as pd
 from pydantic import BaseModel, Field, ValidationError
 from torch.utils.data import Dataset
 from tqdm import tqdm
+import ast
 
 from gr00t.utils.video import get_all_frames, get_frames_by_timestamps
 
@@ -75,13 +76,25 @@ def calculate_dataset_statistics(parquet_paths: list[Path]) -> dict:
         print(f"Computing statistics for {le_modality}...")
         # check if the data is the modality is actually a list of numbers
         # skip if it is a string
-        if isinstance(all_low_dim_data[le_modality].iloc[0], str):
-            print(f"Skipping {le_modality} because it is a string")
-            continue
-
-        np_data = np.vstack(
-            [np.asarray(x, dtype=np.float32) for x in all_low_dim_data[le_modality]]
-        )
+        # pankhuri fix
+        # convert byte strings to numpy arrays
+        # if isinstance(all_low_dim_data[le_modality].iloc[0], str):
+        #     print(f"Skipping {le_modality} because it is a string")
+        #     continue
+        converted_data = []
+        for x in all_low_dim_data[le_modality]:
+            if isinstance(x, (bytes, bytearray)):
+                # convvert byte to string then parse as list
+                x = ast.literal_eval(x.decode("utf-8"))
+            elif isinstance(x, str):
+                # hanlde string case
+                x = ast.literal_eval(x)
+            converted_data.append(np.array(x, dtype=np.float32))
+        
+        # np_data = np.vstack(
+        #     [np.asarray(x, dtype=np.float32) for x in all_low_dim_data[le_modality]]
+        # )
+        np_data = np.vstack(converted_data)
         dataset_statistics[le_modality] = {
             "mean": np.mean(np_data, axis=0).tolist(),
             "std": np.std(np_data, axis=0).tolist(),
@@ -129,6 +142,7 @@ class LeRobotSingleDataset(Dataset):
             embodiment_tag (EmbodimentTag): Overload the embodiment tag for the dataset. e.g. define it as "new_embodiment"
         """
         # first check if the path directory exists
+        print(f"Loading dataset from: {dataset_path}")
         if not Path(dataset_path).exists():
             raise FileNotFoundError(f"Dataset path {dataset_path} does not exist")
 
@@ -715,7 +729,16 @@ class LeRobotSingleDataset(Dataset):
         # Get the data array, shape: (T, D)
         assert self.curr_traj_data is not None, f"No data found for {trajectory_id=}"
         assert le_key in self.curr_traj_data.columns, f"No {le_key} found in {trajectory_id=}"
-        data_array: np.ndarray = np.stack(self.curr_traj_data[le_key])  # type: ignore
+        #data_array: np.ndarray = np.stack(self.curr_traj_data[le_key])  # type: ignore
+        # pankhuri fix
+        cleaned = []
+        for x in self.curr_traj_data[le_key]:
+            if isinstance(x, (bytes, bytearray)):
+                x = x.decode("utf-8")
+            if isinstance(x, str):
+                x = ast.literal_eval(x)
+            cleaned.append(np.array(x, dtype=np.float32))
+        data_array = np.stack([np.atleast_1d(x) for x in cleaned])
         assert data_array.ndim == 2, f"Expected 2D array, got {data_array.shape} array"
         le_indices = np.arange(
             le_state_or_action_cfg[key].start,
@@ -777,7 +800,7 @@ class LeRobotSingleDataset(Dataset):
             original_key = key
         for i in range(len(step_indices)):
             task_indices.append(self.curr_traj_data[original_key][step_indices[i]].item())
-        return self.tasks.loc[task_indices]["task"].tolist()
+        return self.tasks.loc[task_indices]["human.action.task_description"].tolist() # from "task" to human.action.task_description
 
     def get_data_by_modality(
         self,

@@ -307,16 +307,61 @@ class FlowmatchingActionHead(nn.Module):
 
         # Embed noised action trajectory.
         actions = action_input.action
-        noise = torch.randn(actions.shape, device=actions.device, dtype=actions.dtype)
-        t = self.sample_time(actions.shape[0], device=actions.device, dtype=actions.dtype)
-        t = t[:, None, None]  # shape (B,1,1) for broadcast
 
+        # Embed noised action trajectory.
+        actions = action_input.action
+        # noise = torch.randn(actions.shape, device=actions.device, dtype=actions.dtype)
+        # t = self.sample_time(actions.shape[0], device=actions.device, dtype=actions.dtype)
+        # t = t[:, None, None]  # shape (B,1,1) for broadcast
+
+        # noisy_trajectory = (1 - t) * noise + t * actions
+        # velocity = actions - noise
+
+        # --- diffusion forcing ---
+        """
+        Diffusion forcing 
+        """
+        # diffusion forcing 
+        B, T, _ = actions.shape
+        device, dtype = actions.device, actions.dtype
+        df_delta = 8  # e.g., group size (must divide T)
+        if T % df_delta != 0:
+            raise ValueError(f"Sequence length {T} must be divisible by df_delta {df_delta}")
+
+        n_groups = T // df_delta
+
+        # sample t per group (Beta(1.5, 1.0) like before)
+        t_vals = torch.distributions.Beta(1.5, 1.0).sample((B, n_groups)).to(device).clamp(max=0.999)
+
+        # repeat group t across df_delta timesteps → (B, T)
+        t_vals = t_vals.repeat_interleave(df_delta, dim=1)
+        t = t_vals.view(B, T, 1).to(dtype)
+
+        # noise + interpolation
+        noise = torch.randn_like(actions, device=device, dtype=dtype)
         noisy_trajectory = (1 - t) * noise + t * actions
         velocity = actions - noise
 
         # Convert (continuous) t -> discrete if needed
-        t_discretized = (t[:, 0, 0] * self.num_timestep_buckets).long()
+        #t_discretized = (t_vals * self.num_timestep_buckets).long()
+        t_discretized = (t_vals[:, 0] * self.num_timestep_buckets).long()  # shape (B,)
+
+        """diffusion forcing"""
+        # Convert (continuous) t -> discrete if needed
+        #t_discretized = (t[:, 0, 0] * self.num_timestep_buckets).long()
+
         action_features = self.action_encoder(noisy_trajectory, t_discretized, embodiment_id)
+        ##################
+        # noise = torch.randn(actions.shape, device=actions.device, dtype=actions.dtype)
+        # t = self.sample_time(actions.shape[0], device=actions.device, dtype=actions.dtype)
+        # t = t[:, None, None]  # shape (B,1,1) for broadcast
+
+        # noisy_trajectory = (1 - t) * noise + t * actions
+        # velocity = actions - noise
+
+        # # Convert (continuous) t -> discrete if needed
+        # t_discretized = (t[:, 0, 0] * self.num_timestep_buckets).long()
+        # action_features = self.action_encoder(noisy_trajectory, t_discretized, embodiment_id)
 
         # Maybe add position embedding.
         if self.config.add_pos_embed:

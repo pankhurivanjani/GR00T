@@ -16,7 +16,7 @@
 import os
 import subprocess
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Literal
 
@@ -39,7 +39,9 @@ class ArgsConfig:
     """Configuration for GR00T model fine-tuning."""
 
     # Dataset parameters
-    dataset_path: str = "training_data"
+    #dataset_path: str = "usb_data_lerobot" #"training_data"
+    dataset_path: List[str] = field(default_factory=lambda: ["usb_data_lerobot"])
+
     """Path to the dataset directory."""
 
     output_dir: str = f"checkpoints/multi_task_0_1{datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -58,7 +60,7 @@ class ArgsConfig:
     num_gpus: int = 1
     """Number of GPUs to use for training."""
 
-    save_steps: int = 20000
+    save_steps: int = 5000
     """Number of steps between saving checkpoints."""
 
     # Model parameters
@@ -135,7 +137,10 @@ def main(config: ArgsConfig):
     embodiment_tag = EmbodimentTag(config.embodiment_tag)
 
     # 1.1 modality configs and transforms
+
     data_config_cls = DATA_CONFIG_MAP[config.data_config]
+   
+
     modality_configs = data_config_cls.modality_config()
     transforms = data_config_cls.transform()
 
@@ -151,6 +156,7 @@ def main(config: ArgsConfig):
     else:
         single_datasets = []
         for p in config.dataset_path:
+            print(" Loading dataset from: ", p)
             assert os.path.exists(p), f"Dataset path {p} does not exist"
             ## We use the same transforms, modality configs, and embodiment tag for all datasets here,
             ## in reality, you can use dataset from different modalities and embodiment tags
@@ -266,7 +272,7 @@ def main(config: ArgsConfig):
         max_steps=config.max_steps,
         save_strategy="steps",
         save_steps=config.save_steps,
-        evaluation_strategy="no",
+        eval_strategy="no", # or evaluation_strategy depending on transformers version
         save_total_limit=None,  # ....
         report_to=config.report_to,
         seed=42,
@@ -291,7 +297,9 @@ def main(config: ArgsConfig):
 if __name__ == "__main__":
     # Parse arguments using tyro
     config = tyro.cli(ArgsConfig)
-
+    # debug statement to check dataset path
+    print(f"Dataset path is: '{config.dataset_path}'")  # Add this debug line
+    print(f"Dataset path length: {len(config.dataset_path)}")  # Add this debug line
     # Print the tyro config
     print("\n" + "=" * 50)
     print("GR00T FINE-TUNING CONFIGURATION:")

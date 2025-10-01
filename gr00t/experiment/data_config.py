@@ -668,8 +668,8 @@ class FourierGr1ArmsWaistDataConfig(FourierGr1ArmsOnlyDataConfig):
 
 class IRLSinglePandaGripperDataConfig(BaseDataConfig):
     video_keys = [
-        "video.ego_view",
-        "video.second_view"   # two cameras
+        "video.wrist_cam",
+        "video.right_cam"   # two cameras
     ]
     state_keys = [
         "state.joint_pos",
@@ -682,7 +682,7 @@ class IRLSinglePandaGripperDataConfig(BaseDataConfig):
 
     language_keys = ["annotation.human.action.task_description"]
     observation_indices = [0]
-    action_indices = list(range(16))
+    action_indices = list(range(8)) # 16 but shouldn't be 8?
 
 
     def modality_config(self):
@@ -764,8 +764,8 @@ class IRLSinglePandaGripperDataConfig(BaseDataConfig):
 
 class IRLSinglePandaGripperColorTaskDataConfig(BaseDataConfig):
     video_keys = [
-        "video.ego_view",
-        # "video.second_view"   # two cameras
+        "video.wrist_cam",
+        "video.right_cam"   # two cameras
     ]
     state_keys = [
         "state.joint_pos",

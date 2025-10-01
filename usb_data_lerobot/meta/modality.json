@@ -1,0 +1,35 @@
+{
+    "state": {
+        "joint_pos": {
+            "start": 0,
+            "end": 7
+        },
+        "gripper_state": {
+            "start": 7,
+            "end": 8
+        }
+    },
+    "action": {
+        "joint_pos": {
+            "start": 0,
+            "end": 7
+        },
+        "gripper_state": {
+            "start": 7,
+            "end": 8
+        }
+    },
+    "video": {
+        "right_cam": {
+            "original_key": "observation.images.right_cam"
+        },
+        "wrist_cam": {
+            "original_key": "observation.images.wrist_cam"
+        }
+    },
+    "annotation": {
+        "human.action.task_description": {
+            "original_key": "annotation.human.action.task_description"
+        }
+    }
+}

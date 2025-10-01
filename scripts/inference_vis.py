@@ -12,8 +12,8 @@ import gr00t
 # Configurations
 # -----------------------------
 REPO_PATH = os.path.dirname(os.path.dirname(gr00t.__file__))
-DATASET_PATH = os.path.join(REPO_PATH, "training_data")
-MODEL_PATH = os.path.join(REPO_PATH, "checkpoints/checkpoint_20250622_093449")
+DATASET_PATH = os.path.join(REPO_PATH, "usb_data_lerobot")   # "training_data"
+MODEL_PATH = os.path.join(REPO_PATH, "checkpoints/multi_task_0_120250925_191136/checkpoint-60000") ##checkpoint_20250622_093449")
 EMBODIMENT_TAG = "new_embodiment"
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -56,7 +56,9 @@ def plot_joint_states(dataset, traj_id=0, max_steps=300, sample_images=6):
         state_seq.append(data["state.joint_pos"][0])
         action_seq.append(data["action.joint_pos"][0])
         if step % (max_steps // sample_images) == 0:
-            images.append(data["video.ego_view"][0])
+            images.append(data["video.right_cam"][0])
+            images.append(data["video.wrist_cam"][0])
+            #images.append(data["video.ego_view"][0])
 
     state_seq = np.array(state_seq)
     action_seq = np.array(action_seq)
